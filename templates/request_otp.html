@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AUTHFLOW</title>
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<style>
+body {
+  margin: 0;
+  height: 100vh;
+  background: #f3f4f6;
+  font-family: Arial, sans-serif;
+}
+
+.container {
+  width: 350px;
+  padding: 30px;
+  background: #fff;
+  border-radius: 15px;
+  box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  text-align: center;
+}
+
+.icon-circle {
+  width: 70px;
+  height: 70px;
+  background: #d1e7e5;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 15px;
+}
+
+.icon-circle i {
+  font-size: 24px;
+  color: #2d7d74;
+}
+
+.input-box {
+  position: relative;
+  margin-bottom: 15px;
+}
+
+.input-box input {
+  width: 80%;
+  padding: 12px 12px 12px 40px;
+  border-radius: 10px;
+  border: 1px solid #ddd;
+}
+
+.input-box i {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #777;
+}
+
+.btn {
+  width: 100%;
+  padding: 12px;
+  border: none;
+  background: #2d7d74;
+  color: white;
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+.btn-secondary {
+  background: #ccc;
+  color: black;
+  margin-top: 10px;
+}
+</style>
+</head>
+
+<body>
+
+<div class="container">
+  <div class="icon-circle"><i class="fa fa-envelope"></i></div>
+
+  <h2>Request OTP</h2>
+
+  <div class="input-box">
+    <i class="fa fa-envelope"></i>
+    <input id="email" placeholder="Enter email">
+  </div>
+
+  <button class="btn" onclick="requestOTP()">Send OTP</button>
+</div>
+
+<script>``
+async function requestOTP() {
+  const email = document.getElementById("email").value;
+
+  if (!email) {
+    alert("Enter email");
+    return;
+  }
+
+  try {
+    const res = await fetch("http://127.0.0.1:8000/request-otp", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ email })
+    });
+
+    const data = await res.json();
+
+    if (res.ok) {
+      alert("✅ OTP sent");
+
+      // ✅ store email
+      localStorage.setItem("reset_email", email);
+
+      // ✅ redirect
+      window.location.href = "/reset-password";
+    } else {
+      alert("❌ " + data.detail);
+    }
+
+  } catch (err) {
+    console.error(err);
+    alert("Server error");
+  }
+}
+</script>
+</body>
+</html>

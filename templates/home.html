@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AUTHFLOW</title>
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<style>
+body {
+  margin: 0;
+  height: 100vh;
+  font-family: Arial, sans-serif;
+  background: linear-gradient(135deg, #2d7d74, #5cc9b3);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+/* GLASS CARD */
+.container {
+  width: 360px;
+  padding: 40px;
+  background: rgba(255, 255, 255, 0.2);
+  backdrop-filter: blur(15px);
+  border-radius: 20px;
+  text-align: center;
+  box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+  animation: fadeIn 1s ease;
+}
+
+/* ICON */
+.icon-circle {
+  width: 90px;
+  height: 90px;
+  background: rgba(255,255,255,0.3);
+  border-radius: 50%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin: 0 auto 20px;
+}
+
+.icon-circle i {
+  font-size: 35px;
+  color: white;
+}
+
+/* TEXT */
+h1 {
+  color: white;
+  margin-bottom: 10px;
+}
+
+p {
+  color: #eee;
+  margin-bottom: 30px;
+}
+
+/* BUTTON */
+.btn {
+  width: 100%;
+  padding: 14px;
+  border: none;
+  border-radius: 12px;
+  margin: 10px 0;
+  font-size: 16px;
+  cursor: pointer;
+  transition: 0.3s;
+}
+
+/* LOGIN */
+.btn-login {
+  background: #ffffff;
+  color: #2d7d74;
+}
+
+.btn-login:hover {
+  transform: scale(1.05);
+}
+
+/* REGISTER */
+.btn-register {
+  background: transparent;
+  border: 2px solid white;
+  color: white;
+}
+
+.btn-register:hover {
+  background: white;
+  color: #2d7d74;
+}
+
+/* ANIMATION */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(30px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+  <div class="icon-circle">
+    <i class="fa fa-user"></i>
+  </div>
+
+  <h1>Welcome 👋</h1>
+  <p>Secure login system with OTP & JWT</p>
+
+  <button class="btn btn-login" onclick="goLogin()">Login</button>
+  <button class="btn btn-register" onclick="goRegister()">Register</button>
+
+</div>
+
+<script>
+function goLogin() {
+  window.location.href = "/login";
+}
+
+function goRegister() {
+  window.location.href = "/register";
+}
+</script>
+
+
+
+</body>
+</html>

@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AUTHFLOW</title>
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<style>
+body {
+  margin: 0;
+  height: 100vh;
+  background: #f3f4f6;
+  font-family: Arial, sans-serif;
+}
+
+/* CENTER CARD */
+.container {
+  width: 350px;
+  padding: 30px;
+  background: #fff;
+  border-radius: 15px;
+  box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  text-align: center;
+}
+
+/* TOP ICON */
+.icon-circle {
+  width: 70px;
+  height: 70px;
+  background: #d1e7e5;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 15px;
+}
+
+.icon-circle i {
+  font-size: 24px;
+  color: #2d7d74;
+}
+
+/* TEXT */
+h2 {
+  margin: 10px 0;
+}
+
+p {
+  color: #777;
+  margin-bottom: 20px;
+}
+
+/* INPUT BOX */
+.input-box {
+  position: relative;
+  margin-bottom: 20px;
+}
+
+.input-box input {
+  width: 80%;
+  padding: 12px 40px 12px 40px;
+  border-radius: 10px;
+  border: 1px solid #ddd;
+  outline: none;
+}
+
+/* LEFT ICON */
+.input-box i.fa-user,
+.input-box i.fa-lock {
+  position: absolute;
+  left: 15px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #777;
+}
+
+/* RIGHT EYE ICON */
+.toggle-eye {
+  position: absolute;
+  right: 15px;
+  top: 50%;
+  transform: translateY(-50%);
+  cursor: pointer;
+  color: #777;
+}
+
+/* BUTTON */
+.btn {
+  width: 100%;
+  padding: 12px;
+  border: none;
+  background: #2d7d74;
+  color: white;
+  border-radius: 10px;
+  font-size: 16px;
+  cursor: pointer;
+}
+
+.btn:hover {
+  background: #256b63;
+}
+
+/* LINKS */
+.links {
+  margin-top: 15px;
+}
+
+.links a {
+  display: block;
+  margin: 5px 0;
+  text-decoration: none;
+  color: #2d7d74;
+}
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+  <div class="icon-circle">
+    <i class="fa fa-lock"></i>
+  </div>
+
+  <h2>Welcome back</h2>
+  <p>Sign in to your account</p>
+
+  <!-- USERNAME -->
+  <div class="input-box">
+    <i class="fa fa-user"></i>
+    <input id="username" type="text" placeholder="Username or Email">
+  </div>
+
+  <!-- PASSWORD -->
+  <div class="input-box">
+    <i class="fa fa-lock"></i>
+    <input id="password" type="password" placeholder="Password">
+    <i class="fa fa-eye toggle-eye" onclick="togglePassword()"></i>
+  </div>
+
+  <!-- BUTTON -->
+  <button class="btn" onclick="loginUser()">Login</button>
+
+  <!-- LINKS -->
+  <div class="links">
+    <a href="/register">Create an account</a>
+    <a href="/request-otp">Forgot Password?</a>
+  </div>
+
+</div>
+
+<script>
+function togglePassword() {
+  const input = document.getElementById("password");
+  const icon = document.querySelector(".toggle-eye");
+
+  if (input.type === "password") {
+    input.type = "text";
+    icon.classList.remove("fa-eye");
+    icon.classList.add("fa-eye-slash");
+  } else {
+    input.type = "password";
+    icon.classList.remove("fa-eye-slash");
+    icon.classList.add("fa-eye");
+  }
+}
+
+async function loginUser() {
+  const username = document.getElementById("username").value;
+  const password = document.getElementById("password").value;
+
+  if (!username || !password) {
+    alert("⚠️ Enter username and password");
+    return;
+  }
+
+  try {
+    const response = await fetch("http://127.0.0.1:8000/login", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      credentials: "include",
+      body: JSON.stringify({
+        username: username,
+        password: password
+      })
+    });
+
+    const data = await response.json();
+
+    if (response.ok) {
+      window.location.href = "/dashboard";
+    } else {
+      alert("❌ " + data.detail);
+    }
+
+  } catch (err) {
+    console.error(err);
+    alert("Server error");
+  }
+}
+</script>
+
+</body>
+</html>

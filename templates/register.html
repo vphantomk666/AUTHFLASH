@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AUTHFLOW</title>
+
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<style>
+body {
+  margin: 0;
+  height: 100vh;
+  background: #f3f4f6;
+  font-family: Arial, sans-serif;
+}
+
+/* CARD */
+.container {
+  width: 350px;
+  padding: 30px;
+  background: #fff;
+  border-radius: 15px;
+  box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  text-align: center;
+}
+
+/* ICON */
+.icon-circle {
+  width: 70px;
+  height: 70px;
+  background: #d1e7e5;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 15px;
+}
+
+.icon-circle i {
+  font-size: 24px;
+  color: #2d7d74;
+}
+
+h2 { margin: 10px 0; }
+p { color: #777; margin-bottom: 20px; }
+
+/* INPUT */
+.input-box {
+  position: relative;
+  margin-bottom: 15px;
+}
+
+.input-box input {
+  width: 80%;
+  padding: 12px 12px 12px 40px;
+  border-radius: 10px;
+  border: 1px solid #ddd;
+}
+
+.input-box i {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #777;
+}
+
+/* BUTTON */
+.btn {
+  width: 100%;
+  padding: 12px;
+  border: none;
+  background: #2d7d74;
+  color: white;
+  border-radius: 10px;
+  font-size: 16px;
+  cursor: pointer;
+}
+
+.btn:hover {
+  background: #256b63;
+}
+
+.links {
+  margin-top: 15px;
+}
+
+.links a {
+  display: block;
+  margin: 5px 0;
+  text-decoration: none;
+  color: #2d7d74;
+}
+
+/* RIGHT EYE ICON */
+.toggle-eye {
+  position: absolute;
+  right: -250px;
+  top: 50%;
+  transform: translateY(-50%);
+  cursor: pointer;
+  color: #777;
+}
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+  <div class="icon-circle">
+    <i class="fa fa-user-plus"></i>
+  </div>
+
+  <h2>Create Account</h2>
+  <p>Register to get started</p>
+
+  <div class="input-box">
+    <i class="fa fa-user"></i>
+    <input type="text" id="name" placeholder="Full Name">
+  </div>
+
+  <div class="input-box">
+    <i class="fa fa-id-badge"></i>
+    <input type="text" id="username" placeholder="Username">
+  </div>
+
+  <div class="input-box">
+    <i class="fa fa-envelope"></i>
+    <input type="email" id="email" placeholder="Email">
+  </div>
+
+  <div class="input-box">
+    <i class="fa fa-lock"></i>
+    <input type="password" id="password" placeholder="Password">
+    <i class="fa fa-eye toggle-eye" onclick="togglePassword()"></i>
+  </div>
+
+  <button class="btn" onclick="registerUser()">Register</button>
+
+  <div class="links">
+    <a href="/login">Already have an account? Login</a>
+  </div>
+
+</div>
+
+<script>
+function togglePassword() {
+  const input = document.getElementById("password");
+  const icon = document.querySelector(".toggle-eye");
+
+  if (input.type === "password") {
+    input.type = "text";
+    icon.classList.remove("fa-eye");
+    icon.classList.add("fa-eye-slash");
+  } else {
+    input.type = "password";
+    icon.classList.remove("fa-eye-slash");
+    icon.classList.add("fa-eye");
+  }
+}
+
+async function registerUser() {
+  const data = {
+    name: document.getElementById("name").value,
+    username: document.getElementById("username").value,
+    email: document.getElementById("email").value,
+    password: document.getElementById("password").value
+  };
+
+  const response = await fetch("http://127.0.0.1:8000/register", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify(data)
+  });
+
+  const res = await response.json();
+
+  if (response.ok) {
+    alert("✅ Registration successful");
+    window.location.href = "/login";
+  } else {
+    alert("❌ " + res.detail);
+  }
+}
+</script>
+
+</body>
+</html>
