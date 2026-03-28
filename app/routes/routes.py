@@ -1,13 +1,13 @@
-from fastapi import Request, Depends, HTTPException, APIRouter
+from fastapi import Request, Depends, HTTPException, APIRouter, FastAPI
 from fastapi.responses import RedirectResponse, HTMLResponse, JSONResponse
 from sqlalchemy.orm import Session
 import bcrypt
 import re
-import smtplib
+
 import os
 import random
-from datetime import datetime, timedelta
-from email.mime.text import MIMEText
+from datetime import datetime, timedelta, timezone
+import yagmail
 
 from app.core.auth import (
     create_access_token,
@@ -36,7 +36,7 @@ Base.metadata.create_all(bind=engine)
 pattern = r"^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&]).{8,}$"
 
 
-# ─────────────── PAGE ROUTES ───────────────
+# ── PAGE ROUTES ────────────────────────────────────────────────────────────
 
 @router.get("/")
 async def root():
@@ -44,52 +44,68 @@ async def root():
 
 
 @router.get("/home", response_class=HTMLResponse)
-def home(request: Request):
-    response = request.app.state.templates.TemplateResponse(
-        "home.html", {"request": request}
-    )
+async def home_page(request: Request):
+    response = request.app.state.templates.TemplateResponse("home.html", {"request": request})
+
     response.delete_cookie("access_token", path="/")
+
     return response
+
+
+@router.get("/check-auth")
+async def check_auth():
+    return {"authenticated": True}
 
 
 @router.get("/login", response_class=HTMLResponse)
 async def login_page(request: Request):
-    return request.app.state.templates.TemplateResponse(
-        "login.html", {"request": request}
-    )
+    return request.app.state.templates.TemplateResponse("login.html", {"request": request})
 
 
 @router.get("/register", response_class=HTMLResponse)
 async def register_page(request: Request):
-    return request.app.state.templates.TemplateResponse(
-        "register.html", {"request": request}
-    )
+    return request.app.state.templates.TemplateResponse("register.html", {"request": request})
+
+
+@router.get("/request-otp", response_class=HTMLResponse)
+async def request_otp_page(request: Request):
+    return request.app.state.templates.TemplateResponse("request-otp.html", {"request": request})
+
+
+@router.get("/reset-password", response_class=HTMLResponse)
+async def reset_password_page(request: Request):
+    return request.app.state.templates.TemplateResponse("reset-password.html", {"request": request})
 
 
 @router.get("/dashboard", response_class=HTMLResponse)
 async def dashboard_page(
-    request: Request,
-    user: dict = Depends(get_current_user),
-    db: Session = Depends(get_db),
+        request: Request,
+        user: dict = Depends(get_current_user),
+        db: Session = Depends(get_db)
 ):
     username = user.get("sub")
 
     db_user = db.query(UsersDB).filter(
-        (UsersDB.username == username) | (UsersDB.email == username)
+        (UsersDB.username == username) |
+        (UsersDB.email == username)
     ).first()
 
-    if db_user is None:
+    if not db_user:
         return RedirectResponse("/login")
 
-    return request.app.state.templates.TemplateResponse(
-        "dashboard.html", {"request": request, "user": db_user}
-    )
+    return request.app.state.templates.TemplateResponse("dashboard.html", {
+        "request": request,
+        "user": db_user
+    })
 
 
-# -------------------- REGISTER --------------------
+# ── API ROUTES ─────────────────────────────────────────────────────────────
+
+
+# ─────────────── REGISTER ───────────────
+
 @router.post("/register")
 async def register_user(user: register, db: Session = Depends(get_db)):
-
     existing_user = db.query(UsersDB).filter(
         (UsersDB.email == user.email) | (UsersDB.username == user.username)
     ).first()
@@ -115,10 +131,10 @@ async def register_user(user: register, db: Session = Depends(get_db)):
     return {"message": "Registration successful"}
 
 
-# -------------------- LOGIN --------------------
+# ─────────────── LOGIN ───────────────
+
 @router.post("/login")
 async def login_user(data: LoginData, db: Session = Depends(get_db)):
-
     user = db.query(UsersDB).filter(
         (UsersDB.username == data.username) | (UsersDB.email == data.username)
     ).first()
@@ -127,73 +143,101 @@ async def login_user(data: LoginData, db: Session = Depends(get_db)):
         return JSONResponse(status_code=400, content={"detail": "User not found"})
 
     stored = user.password.encode() if isinstance(user.password, str) else user.password
-
     if not bcrypt.checkpw(data.password.encode(), stored):
         return JSONResponse(status_code=400, content={"detail": "Invalid password"})
 
     token = create_access_token({"sub": data.username})
 
     response = JSONResponse({"message": "Login successful"})
-    response.set_cookie("access_token", token, httponly=True)
+    response.set_cookie(
+        key="access_token",
+        value=token,
+        httponly=True,
+        samesite="lax",
+        secure=False  # ✅ FIX for localhost
+    )
 
     return response
 
 
-# -------------------- REQUEST OTP --------------------
+# ─────────────── REQUEST OTP ───────────────
+
+def send_otp_email(to_email: str, otp: str):
+    from_email = os.getenv("EMAIL_ADDRESS")
+    from_password = os.getenv("EMAIL_PASSWORD")
+    
+    yag = yagmail.SMTP(from_email, from_password)
+    yag.send(
+        to=to_email,
+        subject="Password Reset OTP",
+        contents=f"Your OTP for password reset is: {otp}"
+    )
+
+
 @router.post("/request-otp")
 async def request_otp(data: EmailRequest, db: Session = Depends(get_db)):
-
     user = db.query(UsersDB).filter(UsersDB.email == data.email).first()
 
     if user is None:
         return JSONResponse(status_code=400, content={"detail": "User not found"})
 
     otp = str(random.randint(100000, 999999))
-    expires_at = datetime.utcnow() + timedelta(minutes=5)
+    expires_at = datetime.now(timezone.utc) + timedelta(minutes=5)
 
     db.query(OTPCodes).filter(OTPCodes.email == data.email).delete()
+
     db.add(OTPCodes(email=data.email, otp=otp, expires_at=expires_at))
     db.commit()
+
+    try:
+        send_otp_email(data.email, otp)
+    except Exception as e:
+        return JSONResponse(status_code=500, content={"detail": f"Failed to send email: {str(e)}"})
 
     return {"message": "OTP sent"}
 
 
-# -------------------- RESET PASSWORD --------------------
+# ─────────────── RESET PASSWORD ───────────────
+
 @router.post("/reset-password")
 def reset_password(data: ResetPasswordOTP, db: Session = Depends(get_db)):
-
+    # 1. Find OTP record
     record = db.query(OTPCodes).filter(OTPCodes.email == data.email).first()
-
     if record is None:
         return JSONResponse(status_code=400, content={"detail": "OTP not found"})
 
-    if record.otp != data.otp:
+    # 2. Validate OTP
+    if str(record.otp) != str(data.otp):
         return JSONResponse(status_code=400, content={"detail": "Invalid OTP"})
 
+    # 3. Check expiry (instance attribute, not column)
     expires_at = record.expires_at
-
-    if expires_at is None or datetime.utcnow() > expires_at:
+    # noinspection PyDeprecation
+    if expires_at is None or datetime.now(timezone.utc) > expires_at:
         return JSONResponse(status_code=400, content={"detail": "OTP expired"})
 
+    # 4. Find user
     user = db.query(UsersDB).filter(UsersDB.email == data.email).first()
-
     if user is None:
         return JSONResponse(status_code=400, content={"detail": "User not found"})
 
+    # 5. Hash new password (always bytes for bcrypt)
     hashed = bcrypt.hashpw(data.new_password.encode(), bcrypt.gensalt()).decode()
 
-    setattr(user, "password", hashed)
+    # ✅ Assign to instance attribute
+    user.password = hashed
 
+    # 6. Delete OTP record
     db.query(OTPCodes).filter(OTPCodes.email == data.email).delete()
     db.commit()
 
     return {"message": "Password reset successful"}
 
 
-# -------------------- USERS --------------------
+# ─────────────── USERS ───────────────
+
 @router.get("/users")
 async def get_me(request: Request, db: Session = Depends(get_db)):
-
     token = request.cookies.get("access_token")
 
     if not token:
@@ -207,7 +251,7 @@ async def get_me(request: Request, db: Session = Depends(get_db)):
     if user is None:
         return JSONResponse(status_code=404, content={"detail": "User not found"})
 
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
     setattr(user, "last_login", now)
     db.commit()
 
@@ -218,16 +262,16 @@ async def get_me(request: Request, db: Session = Depends(get_db)):
         "username": user.username,
         "email": user.email,
         "last_login": str(last_login_val) if last_login_val is not None else None,
-        "status": user.status if user.status is not None else "Active",
+        "status": user.status if user.status is not None else "Active"
     }
-    
-    
-# Logout
+
+
+# ─────────────── LOGOUT ───────────────
+
 @router.get("/logout")
 async def logout_user():
     response = RedirectResponse(url="/login", status_code=302)
 
-    # 🔥 FORCE DELETE COOKIE
     response.set_cookie(
         key="access_token",
         value="",
@@ -242,4 +286,5 @@ async def logout_user():
 # Run app
 if __name__ == "__main__":
     import uvicorn
+
     uvicorn.run(router, host="127.0.0.1", port=8000)
