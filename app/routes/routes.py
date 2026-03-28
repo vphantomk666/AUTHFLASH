@@ -1,20 +1,20 @@
-from fastapi import Request, Depends, HTTPException, APIRouter, FastAPI
-from fastapi.responses import RedirectResponse, HTMLResponse, JSONResponse
-from sqlalchemy.orm import Session
-import bcrypt
-import re
-
 import os
 import random
+import re
 from datetime import datetime, timedelta, timezone
+
+import bcrypt
 import yagmail
+from dotenv import load_dotenv
+from fastapi import Request, Depends, HTTPException, APIRouter
+from fastapi.responses import RedirectResponse, HTMLResponse, JSONResponse
+from sqlalchemy.orm import Session
 
 from app.core.auth import (
     create_access_token,
     get_current_user,
     decode_access_token,
 )
-
 from app.db.database import engine, Base, get_db
 from app.db.models import UsersDB, OTPCodes
 from app.schemas.schemas import (
@@ -23,8 +23,6 @@ from app.schemas.schemas import (
     LoginData,
     EmailRequest,
 )
-
-from dotenv import load_dotenv
 
 load_dotenv()
 
@@ -142,8 +140,8 @@ async def login_user(data: LoginData, db: Session = Depends(get_db)):
     if user is None:
         return JSONResponse(status_code=400, content={"detail": "User not found"})
 
-    stored = user.password.encode() if isinstance(user.password, str) else user.password
-    if not bcrypt.checkpw(data.password.encode(), stored):
+    password_val = str(user.password)
+    if not bcrypt.checkpw(data.password.encode(), password_val.encode()):
         return JSONResponse(status_code=400, content={"detail": "Invalid password"})
 
     token = create_access_token({"sub": data.username})
@@ -210,10 +208,11 @@ def reset_password(data: ResetPasswordOTP, db: Session = Depends(get_db)):
     if str(record.otp) != str(data.otp):
         return JSONResponse(status_code=400, content={"detail": "Invalid OTP"})
 
-    # 3. Check expiry (instance attribute, not column)
-    expires_at = record.expires_at
-    # noinspection PyDeprecation
-    if expires_at is None or datetime.now(timezone.utc) > expires_at:
+    # 3. Check expiry
+    expires_at_val = getattr(record, "expires_at")
+    current_time = datetime.now(timezone.utc)
+    is_expired = bool(expires_at_val is not None and current_time > expires_at_val)
+    if is_expired:
         return JSONResponse(status_code=400, content={"detail": "OTP expired"})
 
     # 4. Find user
@@ -221,11 +220,11 @@ def reset_password(data: ResetPasswordOTP, db: Session = Depends(get_db)):
     if user is None:
         return JSONResponse(status_code=400, content={"detail": "User not found"})
 
-    # 5. Hash new password (always bytes for bcrypt)
+    # 5. Hash new password
     hashed = bcrypt.hashpw(data.new_password.encode(), bcrypt.gensalt()).decode()
 
-    # ✅ Assign to instance attribute
-    user.password = hashed
+    # Update via SQLAlchemy
+    db.query(UsersDB).filter(UsersDB.email == data.email).update({"password": hashed})
 
     # 6. Delete OTP record
     db.query(OTPCodes).filter(OTPCodes.email == data.email).delete()
