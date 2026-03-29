@@ -8,7 +8,9 @@ import yagmail
 from dotenv import load_dotenv
 from fastapi import Request, Depends, HTTPException, APIRouter
 from fastapi.responses import RedirectResponse, HTMLResponse, JSONResponse
+from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
+import os
 
 from app.core.auth import (
     create_access_token,
@@ -28,6 +30,9 @@ load_dotenv()
 
 router = APIRouter()
 
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+templates = Jinja2Templates(directory=os.path.join(BASE_DIR, "templates"))
+
 # create tables
 Base.metadata.create_all(bind=engine)
 
@@ -43,10 +48,8 @@ async def root():
 
 @router.get("/home", response_class=HTMLResponse)
 async def home_page(request: Request):
-    response = request.app.state.templates.TemplateResponse("home.html", {"request": request})
-
+    response = request.app.state.templates.TemplateResponse(request, "home.html", {"request": request})
     response.delete_cookie("access_token", path="/")
-
     return response
 
 
@@ -57,22 +60,22 @@ async def check_auth():
 
 @router.get("/login", response_class=HTMLResponse)
 async def login_page(request: Request):
-    return request.app.state.templates.TemplateResponse("login.html", {"request": request})
+    return request.app.state.templates.TemplateResponse(request, "login.html", {"request": request})
 
 
 @router.get("/register", response_class=HTMLResponse)
 async def register_page(request: Request):
-    return request.app.state.templates.TemplateResponse("register.html", {"request": request})
+    return templates.TemplateResponse(request, "register.html", {"request": request})
 
 
 @router.get("/request-otp", response_class=HTMLResponse)
 async def request_otp_page(request: Request):
-    return request.app.state.templates.TemplateResponse("request-otp.html", {"request": request})
+    return request.app.state.templates.TemplateResponse(request, "request_otp.html", {"request": request})
 
 
 @router.get("/reset-password", response_class=HTMLResponse)
 async def reset_password_page(request: Request):
-    return request.app.state.templates.TemplateResponse("reset-password.html", {"request": request})
+    return request.app.state.templates.TemplateResponse(request, "reset_password.html", {"request": request})
 
 
 @router.get("/dashboard", response_class=HTMLResponse)
@@ -91,13 +94,13 @@ async def dashboard_page(
     if not db_user:
         return RedirectResponse("/login")
 
-    return request.app.state.templates.TemplateResponse("dashboard.html", {
+    return request.app.state.templates.TemplateResponse(request, "dashboard.html", {
         "request": request,
         "user": db_user
     })
 
 
-# ── API ROUTES ─────────────────────────────────────────────────────────────
+# ────────────────────────── API ROUTES ──────────────────────────
 
 
 # ─────────────── REGISTER ───────────────
@@ -199,34 +202,37 @@ async def request_otp(data: EmailRequest, db: Session = Depends(get_db)):
 
 @router.post("/reset-password")
 def reset_password(data: ResetPasswordOTP, db: Session = Depends(get_db)):
-    # 1. Find OTP record
+    
     record = db.query(OTPCodes).filter(OTPCodes.email == data.email).first()
     if record is None:
         return JSONResponse(status_code=400, content={"detail": "OTP not found"})
 
-    # 2. Validate OTP
+    
     if str(record.otp) != str(data.otp):
         return JSONResponse(status_code=400, content={"detail": "Invalid OTP"})
 
-    # 3. Check expiry
+    
     expires_at_val = getattr(record, "expires_at")
+    if expires_at_val is not None and expires_at_val.tzinfo is None:
+        expires_at_val = expires_at_val.replace(tzinfo=timezone.utc)
+        
     current_time = datetime.now(timezone.utc)
     is_expired = bool(expires_at_val is not None and current_time > expires_at_val)
     if is_expired:
         return JSONResponse(status_code=400, content={"detail": "OTP expired"})
 
-    # 4. Find user
+    
     user = db.query(UsersDB).filter(UsersDB.email == data.email).first()
     if user is None:
         return JSONResponse(status_code=400, content={"detail": "User not found"})
 
-    # 5. Hash new password
+    
     hashed = bcrypt.hashpw(data.new_password.encode(), bcrypt.gensalt()).decode()
 
-    # Update via SQLAlchemy
+    
     db.query(UsersDB).filter(UsersDB.email == data.email).update({"password": hashed})
 
-    # 6. Delete OTP record
+    
     db.query(OTPCodes).filter(OTPCodes.email == data.email).delete()
     db.commit()
 
