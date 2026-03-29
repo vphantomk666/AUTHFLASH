@@ -48,7 +48,7 @@ async def root():
 
 @router.get("/home", response_class=HTMLResponse)
 async def home_page(request: Request):
-    response = request.app.state.templates.TemplateResponse(request, "home.html", {"request": request})
+    response = templates.TemplateResponse(request, "home.html", {"request": request})
     response.delete_cookie("access_token", path="/")
     return response
 
@@ -60,7 +60,7 @@ async def check_auth():
 
 @router.get("/login", response_class=HTMLResponse)
 async def login_page(request: Request):
-    return request.app.state.templates.TemplateResponse(request, "login.html", {"request": request})
+    return templates.TemplateResponse(request, "login.html", {"request": request})
 
 
 @router.get("/register", response_class=HTMLResponse)
@@ -70,12 +70,12 @@ async def register_page(request: Request):
 
 @router.get("/request-otp", response_class=HTMLResponse)
 async def request_otp_page(request: Request):
-    return request.app.state.templates.TemplateResponse(request, "request_otp.html", {"request": request})
+    return templates.TemplateResponse(request, "request_otp.html", {"request": request})
 
 
 @router.get("/reset-password", response_class=HTMLResponse)
 async def reset_password_page(request: Request):
-    return request.app.state.templates.TemplateResponse(request, "reset_password.html", {"request": request})
+    return templates.TemplateResponse(request, "reset_password.html", {"request": request})
 
 
 @router.get("/dashboard", response_class=HTMLResponse)
@@ -94,7 +94,7 @@ async def dashboard_page(
     if not db_user:
         return RedirectResponse("/login")
 
-    return request.app.state.templates.TemplateResponse(request, "dashboard.html", {
+    return templates.TemplateResponse(request, "dashboard.html", {
         "request": request,
         "user": db_user
     })
@@ -164,15 +164,21 @@ async def login_user(data: LoginData, db: Session = Depends(get_db)):
 # ─────────────── REQUEST OTP ───────────────
 
 def send_otp_email(to_email: str, otp: str):
-    from_email = os.getenv("EMAIL_ADDRESS")
-    from_password = os.getenv("EMAIL_PASSWORD")
+    from_email: str = os.getenv("EMAIL_ADDRESS", "")
+    from_password: str = os.getenv("EMAIL_PASSWORD", "")
     
-    yag = yagmail.SMTP(from_email, from_password)
-    yag.send(
-        to=to_email,
-        subject="Password Reset OTP",
-        contents=f"Your OTP for password reset is: {otp}"
-    )
+    import smtplib
+    from email.mime.text import MIMEText
+    
+    msg = MIMEText(f"Your OTP for password reset is: {otp}")
+    msg['Subject'] = "Password Reset OTP"
+    msg['From'] = from_email
+    msg['To'] = to_email
+    
+    with smtplib.SMTP('smtp.gmail.com', 587) as server:
+        server.starttls()
+        server.login(from_email, from_password)
+        server.send_message(msg)
 
 
 @router.post("/request-otp")
