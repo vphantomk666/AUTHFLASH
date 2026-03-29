@@ -48,7 +48,7 @@ async def root():
 
 @router.get("/home", response_class=HTMLResponse)
 async def home_page(request: Request):
-    response = templates.TemplateResponse(request, "home.html", {"request": request})
+    response = request.app.state.templates.TemplateResponse(request, "home.html", {"request": request})
     response.delete_cookie("access_token", path="/")
     return response
 
@@ -60,22 +60,22 @@ async def check_auth():
 
 @router.get("/login", response_class=HTMLResponse)
 async def login_page(request: Request):
-    return templates.TemplateResponse(request, "login.html", {"request": request})
+    return request.app.state.templates.TemplateResponse(request, "login.html", {"request": request})
 
 
 @router.get("/register", response_class=HTMLResponse)
 async def register_page(request: Request):
-    return templates.TemplateResponse(request, "register.html", {"request": request})
+    return request.app.state.templates.TemplateResponse(request, "register.html", {"request": request})
 
 
 @router.get("/request-otp", response_class=HTMLResponse)
 async def request_otp_page(request: Request):
-    return templates.TemplateResponse(request, "request_otp.html", {"request": request})
+    return request.app.state.templates.TemplateResponse(request, "request_otp.html", {"request": request})
 
 
 @router.get("/reset-password", response_class=HTMLResponse)
 async def reset_password_page(request: Request):
-    return templates.TemplateResponse(request, "reset_password.html", {"request": request})
+    return request.app.state.templates.TemplateResponse(request, "reset_password.html", {"request": request})
 
 
 @router.get("/dashboard", response_class=HTMLResponse)
@@ -94,7 +94,7 @@ async def dashboard_page(
     if not db_user:
         return RedirectResponse("/login")
 
-    return templates.TemplateResponse(request, "dashboard.html", {
+    return request.app.state.templates.TemplateResponse(request, "dashboard.html", {
         "request": request,
         "user": db_user
     })
