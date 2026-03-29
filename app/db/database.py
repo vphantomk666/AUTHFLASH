@@ -2,19 +2,21 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
 import os
 from dotenv import load_dotenv
+import pymysql
 
-# ✅ load env
+pymysql.install_as_MySQLdb()
+
 load_dotenv()
 
-# ✅ get DB URL from env
-DATABASE_URL = os.getenv("DATABASE_URL")
+DATABASE_URL = os.getenv("DataBase_URL")
 
 if DATABASE_URL is None:
-    raise ValueError("DATABASE_URL is not set")
+    raise ValueError("DataBase_URL is not set")
 
 engine = create_engine(
     DATABASE_URL,
-    pool_pre_ping=True
+    pool_pre_ping=True,
+    pool_recycle=300
 )
 
 SessionLocal = sessionmaker(
