@@ -4,13 +4,11 @@ import re
 from datetime import datetime, timedelta, timezone
 
 import bcrypt
-import yagmail
 from dotenv import load_dotenv
 from fastapi import Request, Depends, HTTPException, APIRouter
 from fastapi.responses import RedirectResponse, HTMLResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
-import os
 
 from app.core.auth import (
     create_access_token,
@@ -33,13 +31,10 @@ router = APIRouter()
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 templates = Jinja2Templates(directory=os.path.join(BASE_DIR, "templates"))
 
-# create tables
 Base.metadata.create_all(bind=engine)
 
 pattern = r"^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&]).{8,}$"
 
-
-# ── PAGE ROUTES ────────────────────────────────────────────────────────────
 
 @router.get("/")
 async def root():
@@ -48,7 +43,7 @@ async def root():
 
 @router.get("/home", response_class=HTMLResponse)
 async def home_page(request: Request):
-    response = request.app.state.templates.TemplateResponse(request, "home.html", {"request": request})
+    response = templates.TemplateResponse(request, "home.html", {"request": request})
     response.delete_cookie("access_token", path="/")
     return response
 
@@ -60,22 +55,22 @@ async def check_auth():
 
 @router.get("/login", response_class=HTMLResponse)
 async def login_page(request: Request):
-    return request.app.state.templates.TemplateResponse(request, "login.html", {"request": request})
+    return templates.TemplateResponse(request, "login.html", {"request": request})
 
 
 @router.get("/register", response_class=HTMLResponse)
 async def register_page(request: Request):
-    return request.app.state.templates.TemplateResponse(request, "register.html", {"request": request})
+    return templates.TemplateResponse(request, "register.html", {"request": request})
 
 
 @router.get("/request-otp", response_class=HTMLResponse)
 async def request_otp_page(request: Request):
-    return request.app.state.templates.TemplateResponse(request, "request_otp.html", {"request": request})
+    return templates.TemplateResponse(request, "request_otp.html", {"request": request})
 
 
 @router.get("/reset-password", response_class=HTMLResponse)
 async def reset_password_page(request: Request):
-    return request.app.state.templates.TemplateResponse(request, "reset_password.html", {"request": request})
+    return templates.TemplateResponse(request, "reset_password.html", {"request": request})
 
 
 @router.get("/dashboard", response_class=HTMLResponse)
@@ -94,16 +89,11 @@ async def dashboard_page(
     if not db_user:
         return RedirectResponse("/login")
 
-    return request.app.state.templates.TemplateResponse(request, "dashboard.html", {
+    return templates.TemplateResponse(request, "dashboard.html", {
         "request": request,
         "user": db_user
     })
 
-
-# ────────────────────────── API ROUTES ──────────────────────────
-
-
-# ─────────────── REGISTER ───────────────
 
 @router.post("/register")
 async def register_user(user: register, db: Session = Depends(get_db)):
@@ -132,8 +122,6 @@ async def register_user(user: register, db: Session = Depends(get_db)):
     return {"message": "Registration successful"}
 
 
-# ─────────────── LOGIN ───────────────
-
 @router.post("/login")
 async def login_user(data: LoginData, db: Session = Depends(get_db)):
     user = db.query(UsersDB).filter(
@@ -155,13 +143,11 @@ async def login_user(data: LoginData, db: Session = Depends(get_db)):
         value=token,
         httponly=True,
         samesite="lax",
-        secure=False  # ✅ FIX for localhost
+        secure=False
     )
 
     return response
 
-
-# ─────────────── REQUEST OTP ───────────────
 
 def send_otp_email(to_email: str, otp: str):
     from_email: str = os.getenv("EMAIL_ADDRESS", "")
@@ -204,8 +190,6 @@ async def request_otp(data: EmailRequest, db: Session = Depends(get_db)):
     return {"message": "OTP sent"}
 
 
-# ─────────────── RESET PASSWORD ───────────────
-
 @router.post("/reset-password")
 def reset_password(data: ResetPasswordOTP, db: Session = Depends(get_db)):
     
@@ -213,11 +197,9 @@ def reset_password(data: ResetPasswordOTP, db: Session = Depends(get_db)):
     if record is None:
         return JSONResponse(status_code=400, content={"detail": "OTP not found"})
 
-    
     if str(record.otp) != str(data.otp):
         return JSONResponse(status_code=400, content={"detail": "Invalid OTP"})
 
-    
     expires_at_val = getattr(record, "expires_at")
     if expires_at_val is not None and expires_at_val.tzinfo is None:
         expires_at_val = expires_at_val.replace(tzinfo=timezone.utc)
@@ -227,25 +209,18 @@ def reset_password(data: ResetPasswordOTP, db: Session = Depends(get_db)):
     if is_expired:
         return JSONResponse(status_code=400, content={"detail": "OTP expired"})
 
-    
     user = db.query(UsersDB).filter(UsersDB.email == data.email).first()
     if user is None:
         return JSONResponse(status_code=400, content={"detail": "User not found"})
 
-    
     hashed = bcrypt.hashpw(data.new_password.encode(), bcrypt.gensalt()).decode()
 
-    
     db.query(UsersDB).filter(UsersDB.email == data.email).update({"password": hashed})
-
-    
     db.query(OTPCodes).filter(OTPCodes.email == data.email).delete()
     db.commit()
 
     return {"message": "Password reset successful"}
 
-
-# ─────────────── USERS ───────────────
 
 @router.get("/users")
 async def get_me(request: Request, db: Session = Depends(get_db)):
@@ -277,12 +252,9 @@ async def get_me(request: Request, db: Session = Depends(get_db)):
     }
 
 
-# ─────────────── LOGOUT ───────────────
-
 @router.get("/logout")
 async def logout_user():
     response = RedirectResponse(url="/login", status_code=302)
-
     response.set_cookie(
         key="access_token",
         value="",
@@ -290,12 +262,9 @@ async def logout_user():
         expires=0,
         path="/",
     )
-
     return response
 
 
-# Run app
 if __name__ == "__main__":
     import uvicorn
-
     uvicorn.run(router, host="127.0.0.1", port=8000)

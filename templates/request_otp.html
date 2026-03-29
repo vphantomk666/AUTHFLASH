@@ -107,7 +107,7 @@ async function requestOTP() {
   }
 
   try {
-    const res = await fetch("http://127.0.0.1:8000/request-otp", {
+    const res = await fetch("/request-otp", {
       method: "POST",
       headers: {
         "Content-Type": "application/json"
