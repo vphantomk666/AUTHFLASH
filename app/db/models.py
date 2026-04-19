@@ -1,4 +1,5 @@
-from sqlalchemy import Column, Integer, String, DateTime
+from sqlalchemy import Column, Integer, String, TIMESTAMP
+from sqlalchemy.sql import func
 from app.db.database import Base
 
 class UsersDB(Base):
@@ -9,7 +10,7 @@ class UsersDB(Base):
     username = Column(String(100), unique=True)
     email = Column(String(100), unique=True)
     password = Column(String(255))
-    last_login = Column(DateTime, default=None)
+    last_login = Column(TIMESTAMP(timezone=True), default=None)
     status = Column(String, default="Active")
     
 
@@ -19,7 +20,7 @@ class OTPCodes(Base):
     id = Column(Integer, primary_key=True, index=True)
     email = Column(String(255), nullable=False)
     otp = Column(String(6), nullable=False)
-    expires_at = Column(DateTime)
+    expires_at = Column(TIMESTAMP(timezone=True))
     
 
 
