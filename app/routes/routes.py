@@ -7,6 +7,7 @@ import bcrypt
 from dotenv import load_dotenv
 from fastapi import Request, Depends, HTTPException, APIRouter
 from fastapi.responses import RedirectResponse, HTMLResponse, JSONResponse
+from starlette.exceptions import HTTPException as StarletteHTTPException
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 
@@ -55,11 +56,21 @@ async def check_auth():
 
 @router.get("/login", response_class=HTMLResponse)
 async def login_page(request: Request):
+    try:
+        user = get_current_user(request)
+        return RedirectResponse("/dashboard")
+    except:
+        pass
     return templates.TemplateResponse(request, "login.html", {"request": request})
 
 
 @router.get("/register", response_class=HTMLResponse)
 async def register_page(request: Request):
+    try:
+        user = get_current_user(request)
+        return RedirectResponse("/dashboard")
+    except:
+        pass
     return templates.TemplateResponse(request, "register.html", {"request": request})
 
 
