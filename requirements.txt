@@ -1,7 +1,7 @@
 fastapi
 uvicorn[standard]
 sqlalchemy
-pymysql
+psycopg2-binary
 bcrypt
 python-dotenv
 jinja2
@@ -9,4 +9,3 @@ python-multipart
 passlib[bcrypt]
 python-jose
 email-validator
-mysql-connector-python
