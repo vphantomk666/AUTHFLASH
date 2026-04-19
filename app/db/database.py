@@ -1,4 +1,4 @@
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker, declarative_base
 import os
 from dotenv import load_dotenv
@@ -12,6 +12,21 @@ DATABASE_URL = os.getenv("DataBase_URL")
 
 if DATABASE_URL is None:
     raise ValueError("DataBase_URL is not set")
+
+db_name = "Authenticaton"
+
+engine = create_engine(
+    DATABASE_URL.replace(f"/{db_name}", "/mysql"),
+    pool_pre_ping=True,
+    pool_recycle=300
+)
+
+try:
+    with engine.connect() as conn:
+        conn.execute(text(f"CREATE DATABASE IF NOT EXISTS {db_name}"))
+        print(f"Database {db_name} ready")
+except Exception as e:
+    print(f"Note: {e}")
 
 engine = create_engine(
     DATABASE_URL,
