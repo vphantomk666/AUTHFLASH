@@ -154,7 +154,9 @@ async def login_user(data: LoginData, db: Session = Depends(get_db)):
         value=token,
         httponly=True,
         samesite="lax",
-        secure=False
+        secure=False,
+        max_age=600,
+        expires=600
     )
 
     return response
@@ -266,13 +268,7 @@ async def get_me(request: Request, db: Session = Depends(get_db)):
 @router.get("/logout")
 async def logout_user():
     response = RedirectResponse(url="/login", status_code=302)
-    response.set_cookie(
-        key="access_token",
-        value="",
-        max_age=0,
-        expires=0,
-        path="/",
-    )
+    response.delete_cookie(key="access_token", path="/")
     return response
 
 
